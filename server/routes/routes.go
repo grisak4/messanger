@@ -2,6 +2,7 @@ package routes
 
 import (
 	"database/sql"
+	"messenger-prot/services/authorization"
 	"messenger-prot/services/registration"
 	"time"
 
@@ -12,6 +13,9 @@ import (
 func ReginRoutes(router *gin.Engine, db *sql.DB) {
 	router.POST("/regin", func(c *gin.Context) {
 		registration.PostCreateUser(c, db)
+	})
+	router.POST("/login", func(c *gin.Context) {
+		authorization.PostLoginUser(c, db)
 	})
 }
 

@@ -4,3 +4,6 @@ database:
   user: "root"
   password: "12345"
   dbname: "messenger"
+
+jwt:
+  secret: "myjwtsecur"

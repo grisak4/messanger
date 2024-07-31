@@ -13,10 +13,10 @@ var db *sql.DB
 
 func ConnectDB() {
 	var err error
-	connConf := config.ReadConfigDatabase()
+	connConf := config.GetDatabaseConfig()
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
-		connConf.User, connConf.Password, connConf.Host, connConf.Port, connConf.DatabaseName)
+		connConf.User, connConf.Password, connConf.Host, connConf.Port, connConf.DBName)
 
 	// Подключение к базе данных
 	db, err = sql.Open("mysql", dsn)

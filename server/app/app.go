@@ -1,6 +1,7 @@
 package app
 
 import (
+	"messenger-prot/config"
 	"messenger-prot/database"
 	"messenger-prot/routes"
 
@@ -8,6 +9,8 @@ import (
 )
 
 func Run() {
+	config.InitConfig()
+
 	database.ConnectDB()
 	defer database.CloseDB()
 
