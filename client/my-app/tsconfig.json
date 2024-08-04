@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+      "target": "es5", // Версия ECMAScript
+      "module": "commonjs", // Модульная система
+      "strict": true, // Включает строгую проверку типов
+      "esModuleInterop": true, // Позволяет использовать CommonJS модули
+      // Другие параметры конфигурации...
+    },
+    "include": [
+      "src/**/*" // Включает все файлы в папке src и её подпапках
+    ],
+    "exclude": [
+      "node_modules" // Исключает папку node_modules
+    ]
+}
