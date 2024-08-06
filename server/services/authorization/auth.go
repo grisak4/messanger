@@ -1,7 +1,6 @@
 package authorization
 
 import (
-	"database/sql"
 	"fmt"
 	"messenger-prot/config"
 	"messenger-prot/models"
@@ -11,11 +10,12 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-func PostLoginUser(c *gin.Context, db *sql.DB) {
+func PostLoginUser(c *gin.Context, db *gorm.DB) {
 	var creds struct {
-		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	if err := c.BindJSON(&creds); err != nil {
@@ -23,39 +23,21 @@ func PostLoginUser(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	rows, err := db.Query("SELECT * FROM Users")
-	if err != nil {
-		fmt.Println("Error with getTasks: ", err)
-		c.IndentedJSON(http.StatusConflict, gin.H{"error": "Error with database"})
-		return
-	}
-
-	var users []models.User
-	for rows.Next() { // вывод с базы
-		var user models.User
-		if err := rows.Scan(&user.UserID, &user.Username, &user.Password); err != nil {
-			fmt.Println("Error with scan")
-			c.IndentedJSON(http.StatusConflict, gin.H{"error": "Error with database"})
+	var user models.User
+	result := db.Where("email = ? AND password = ?", creds.Email, creds.Password).First(&user)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 			return
 		}
-		users = append(users, user)
-	}
-
-	userFound := false
-	for _, user := range users {
-		if creds.Username == user.Username && creds.Password == user.Password {
-			userFound = true
-			break
-		}
-	}
-	if !userFound {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		fmt.Println("Error querying database:", result.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
 
 	expirationTime := time.Now().Add(5 * time.Hour) // создание времени существования токена
 	claims := &jwttoken.Claims{
-		Username: creds.Username,
+		Email: creds.Email,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},

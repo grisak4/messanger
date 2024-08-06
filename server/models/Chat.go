@@ -1,7 +1,10 @@
 package models
 
+import "time"
+
 type Chat struct {
-	ChatID    int    `json:"chat_id"`
-	ChatName  string `json:"chat_name"`
-	CreatedAt string `json:"created_at"`
+	ChatID    uint   `gorm:"primaryKey;autoIncrement"`
+	ChatName  string `gorm:"size:255;not null"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

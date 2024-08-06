@@ -1,16 +1,16 @@
 package routes
 
 import (
-	"database/sql"
 	"messenger-prot/services/authorization"
 	"messenger-prot/services/registration"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-func ReginRoutes(router *gin.Engine, db *sql.DB) {
+func ReginRoutes(router *gin.Engine, db *gorm.DB) {
 	router.POST("/regin", func(c *gin.Context) {
 		registration.PostCreateUser(c, db)
 	})
