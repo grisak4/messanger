@@ -2,6 +2,8 @@ package routes
 
 import (
 	"messenger-prot/services/authorization"
+	"messenger-prot/services/chats"
+	"messenger-prot/services/messages"
 	"messenger-prot/services/registration"
 	"time"
 
@@ -10,12 +12,25 @@ import (
 	"gorm.io/gorm"
 )
 
-func ReginRoutes(router *gin.Engine, db *gorm.DB) {
-	router.POST("/regin", func(c *gin.Context) {
+func Routes(router *gin.Engine, db *gorm.DB) {
+	// registration
+	router.POST("/api/v1/regin", func(c *gin.Context) {
 		registration.PostCreateUser(c, db)
 	})
-	router.POST("/login", func(c *gin.Context) {
+
+	// authorization
+	router.POST("/api/v1/login", func(c *gin.Context) {
 		authorization.PostLoginUser(c, db)
+	})
+
+	// chats
+	router.GET("/api/v1/chats", func(c *gin.Context) {
+		chats.GetChats(c, db)
+	})
+
+	// messages
+	router.GET("/api/v1/chats/:chat_id/messages", func(c *gin.Context) {
+		messages.GetMessages(c, db)
 	})
 }
 

@@ -26,9 +26,9 @@ func PostCreateUser(c *gin.Context, db *gorm.DB) {
 
 	if err := db.Create(&user).Error; err != nil {
 		fmt.Println("Error with insert:", err)
-		c.IndentedJSON(http.StatusInternalServerError, "Error with post")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create user"})
 		return
 	}
 
-	c.IndentedJSON(http.StatusCreated, user.UserID)
+	c.JSON(http.StatusCreated, gin.H{"success": true, "userID": user.UserID})
 }

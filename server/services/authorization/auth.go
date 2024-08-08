@@ -52,5 +52,6 @@ func PostLoginUser(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+	c.JSON(http.StatusOK, gin.H{"success": true, "token": tokenString, "user_id": user.UserID})
+
 }
