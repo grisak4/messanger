@@ -1,16 +1,17 @@
 package registration
 
 import (
-	"database/sql"
 	"fmt"
+	"messenger-prot/models"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-func PostCreateUser(c *gin.Context, db *sql.DB) {
+func PostCreateUser(c *gin.Context, db *gorm.DB) {
 	var creds struct {
-		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	if err := c.BindJSON(&creds); err != nil {
@@ -18,19 +19,16 @@ func PostCreateUser(c *gin.Context, db *sql.DB) {
 		return
 	}
 
-	result, err := db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", creds.Username, creds.Password)
-	if err != nil {
-		fmt.Println("Error with insert: ", err)
+	user := models.User{
+		Email:    creds.Email,
+		Password: creds.Password,
+	}
+
+	if err := db.Create(&user).Error; err != nil {
+		fmt.Println("Error with insert:", err)
 		c.IndentedJSON(http.StatusInternalServerError, "Error with post")
 		return
 	}
 
-	lastInsertID, err := result.LastInsertId()
-	if err != nil {
-		fmt.Println("Error getting last insert ID:", err)
-		c.IndentedJSON(http.StatusInternalServerError, "Error with post")
-		return
-	}
-
-	c.IndentedJSON(http.StatusCreated, lastInsertID)
+	c.IndentedJSON(http.StatusCreated, user.UserID)
 }
