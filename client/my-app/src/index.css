@@ -1,0 +1,37 @@
+*{
+    margin: 0;
+    padding: 0;
+    text-decoration: none;
+    box-sizing: border-box;
+}
+
+body{
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.window{
+    width: 400px;
+    height: 600px;
+    text-align: center;
+    font-family: "Roboto", sans-serif;
+
+}
+.window_input input{
+    display: block;
+    width: 90%;
+    height: 50px;
+    border-radius: 10px;
+    border: 1px solid rgb(172, 172, 172);
+    margin: 25px auto;
+    padding: 5px;
+}
+input :focus{
+    border: 2px solid  rgb(0, 121, 235);
+}
+a{
+    color: rgb(0, 121, 235);
+    font-weight: 400;
+}
