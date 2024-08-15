@@ -18,5 +18,5 @@ func Run() {
 	routes.CorsConfig(r)
 	routes.Routes(r, database.GetDB())
 
-	r.Run("0.0.0.0:8080")
+	r.Run(":8080")
 }
