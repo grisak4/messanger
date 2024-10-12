@@ -7,7 +7,7 @@ type Message struct {
 	ChatID         uint      `gorm:"not null"`
 	UserID         uint      `gorm:"not null"`
 	MessageContent string    `gorm:"type:text;not null"`
-	TimeSent       time.Time `gorm:"type:datetime;not null"`
+	TimeSent       time.Time `gorm:"type:timestamptz;not null"` // Изменено с datetime на timestamptz
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }

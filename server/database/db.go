@@ -6,7 +6,8 @@ import (
 	"messenger-prot/config"
 	"messenger-prot/models"
 
-	"gorm.io/driver/mysql"
+	/*  */
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -16,11 +17,12 @@ func ConnectDB() {
 	var err error
 	connConf := config.GetDatabaseConfig()
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		connConf.User, connConf.Password, connConf.Host, connConf.Port, connConf.DBName)
+	// Строка подключения для PostgreSQL
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=UTC",
+		connConf.Host, connConf.User, connConf.Password, connConf.DBName, connConf.Port)
 
-	// Подключение к базе данных с использованием GORM
-	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	// Подключение к базе данных с использованием GORM и PostgreSQL драйвера
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Error connecting to the database: %s", err)
 	}

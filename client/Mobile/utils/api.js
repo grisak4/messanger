@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Конфигурация API
-const API_URL = 'http://192.168.1.33:8080/api/v1';
+const API_URL = 'http://192.168.152.216:8080/api/v1';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -54,16 +54,15 @@ export const getChats = async (userId) => {
 // Получение сообщений чата
 export const getMessages = async (chatId) => {
   try {
-    if (!chatId) {
-      throw new Error('chatId is undefined');
-    }
-    const response = await api.get(`/chats/${chatId}/messages`);
-    if (!response.data) {
-      throw new Error('No data received from the server');
-    }
-    return response.data;
+    const response = await axios.get(`${API_URL}/chats/${chatId}/messages`);
+    return response.data; // Ensure this structure matches your API response
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    throw error;
+    console.error('Ошибка получения сообщений:', error);
+    throw error; // Rethrow to handle in ChatScreen
   }
+};
+
+export const getUserById = async (userId) => {
+  const response = await axios.get(`${API_URL}/users/${userId}`);
+  return response.data; // Assuming response.data contains the user object
 };
