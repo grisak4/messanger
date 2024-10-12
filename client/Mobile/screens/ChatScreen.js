@@ -13,12 +13,12 @@ const ChatScreen = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef(null);
   const ws = useRef(null);
+  const reconnectAttempts = useRef(0); // Счётчик попыток переподключения
 
   const fetchUserName = async (userId) => {
     if (userCache[userId]) {
       return userCache[userId];
     }
-
     try {
       const user = await getUserById(userId);
       setUserCache((prevCache) => ({
@@ -45,7 +45,7 @@ const ChatScreen = ({ route }) => {
       } catch (error) {
         Alert.alert('Ошибка', 'Не удалось загрузить сообщения');
       } finally {
-        setLoading(false); // Set loading to false after messages are fetched
+        setLoading(false); // Отключаем индикатор загрузки
       }
     };
 
@@ -62,20 +62,23 @@ const ChatScreen = ({ route }) => {
     const setupWebSocket = async () => {
       const userId = await fetchUserId();
       if (userId) {
-        ws.current = new WebSocket(`ws://192.168.152.216:8080/api/v1/ws/chats/${chatId}/users/${userId}`);
+        ws.current = new WebSocket(`ws://192.168.1.37:8080/api/v1/ws/chats/${chatId}/users/${userId}`);
 
         ws.current.onopen = () => {
           console.log('WebSocket соединение открыто');
+          reconnectAttempts.current = 0; // Сброс счётчика при успешном подключении
         };
 
         ws.current.onmessage = async (event) => {
           try {
             const message = JSON.parse(event.data);
-            const userName = await fetchUserName(message.UserID);
+            const userName = userCache[message.UserID] || await fetchUserName(message.UserID);
+
             setMessages((prevMessages) => [
               ...prevMessages,
               { ...message, UserName: userName },
             ]);
+
             scrollToBottom();
           } catch (error) {
             console.error('Ошибка разбора сообщения:', error);
@@ -84,12 +87,24 @@ const ChatScreen = ({ route }) => {
 
         ws.current.onclose = () => {
           console.log('WebSocket соединение закрыто');
-          setTimeout(setupWebSocket, 1000); // Attempt to reconnect after 1 second
+          attemptReconnect(); // Попытка переподключения
         };
 
         ws.current.onerror = (error) => {
           console.error('WebSocket ошибка:', error.message || 'Неизвестная ошибка');
         };
+      }
+    };
+
+    const attemptReconnect = () => {
+      if (reconnectAttempts.current < 5) { // Ограничение на количество попыток
+        reconnectAttempts.current += 1;
+        setTimeout(() => {
+          console.log(`Попытка переподключения ${reconnectAttempts.current}`);
+          setupWebSocket();
+        }, 2000 * reconnectAttempts.current); // Увеличиваем интервал между попытками переподключения
+      } else {
+        Alert.alert('Ошибка', 'Не удалось подключиться к WebSocket после нескольких попыток. Пожалуйста, перезагрузите чат.');
       }
     };
 
@@ -108,13 +123,13 @@ const ChatScreen = ({ route }) => {
 
     const message = {
       chatId,
-      message: newMessage,
-      senderId: userSenderId,
+      MessageContent: newMessage, // Отправляем только текст сообщения
+      UserID: userSenderId,
     };
 
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(message));
-      setNewMessage('');
+      setNewMessage(''); // Очищаем поле ввода
     } else {
       console.error('WebSocket не открыт. Текущее состояние:', ws.current.readyState);
     }

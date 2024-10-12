@@ -48,7 +48,7 @@ func Routes(router *gin.Engine, db *gorm.DB) {
 
 func CorsConfig(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://192.168.1.33:8081", "http://localhost:8081"}, // Замените на домены вашего приложения
+		AllowOrigins:     []string{"*"}, // Замените на домены вашего приложения
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},

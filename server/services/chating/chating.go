@@ -6,6 +6,7 @@ import (
 	"messenger-prot/models"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,10 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// Хранилище для активных соединений пользователей в разных чатах
+var clients = make(map[int]map[int]*websocket.Conn) // chatID -> map[userID]conn
+var clientsMutex sync.Mutex
+
 func HandleConnection(c *gin.Context, db *gorm.DB) {
 	// соединение WebSocket
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -29,29 +34,48 @@ func HandleConnection(c *gin.Context, db *gorm.DB) {
 	}
 	defer conn.Close()
 
+	chatid := c.Param("chat_id")
+	if chatid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "chat_id is required"})
+		return
+	}
+	chatID, err := strconv.Atoi(chatid)
+	if err != nil {
+		fmt.Println("Ошибка конвертации:", err)
+		return
+	}
+
+	userid := c.Param("user_id")
+	if userid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+	userID, err := strconv.Atoi(userid)
+	if err != nil {
+		fmt.Println("Ошибка конвертации:", err)
+		return
+	}
+
+	// Сохраняем соединение в список клиентов
+	clientsMutex.Lock()
+	if clients[chatID] == nil {
+		clients[chatID] = make(map[int]*websocket.Conn)
+	}
+	clients[chatID][userID] = conn
+	clientsMutex.Unlock()
+
+	defer func() {
+		// Удаляем соединение при закрытии
+		clientsMutex.Lock()
+		delete(clients[chatID], userID)
+		if len(clients[chatID]) == 0 {
+			delete(clients, chatID)
+		}
+		clientsMutex.Unlock()
+	}()
+
 	for {
-		chatid := c.Param("chat_id")
-		if chatid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "chat_id is required"})
-			return
-		}
-		chatID, err := strconv.Atoi(chatid)
-		if err != nil {
-			fmt.Println("Ошибка конвертации:", err)
-			return
-		}
-
-		userid := c.Param("user_id")
-		if userid == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
-			return
-		}
-		userID, err := strconv.Atoi(userid)
-		if err != nil {
-			fmt.Println("Ошибка конвертации:", err)
-			return
-		}
-
+		// Чтение сообщения от клиента
 		messageType, msg, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("Ошибка чтения сообщения:", err)
@@ -66,25 +90,26 @@ func HandleConnection(c *gin.Context, db *gorm.DB) {
 			TimeSent:       time.Now(),
 		}
 
-		// Попробуйте вставить сообщение в БД
+		// Запись сообщения в базу данных
 		if err := db.Create(&message).Error; err != nil {
 			fmt.Println("Ошибка при записи в БД:", err)
 			continue
 		}
 
-		fmt.Println("Получено сообщение: ", message)
-
 		// Сериализация сообщения
 		jsonMessage, err := json.Marshal(message)
 		if err != nil {
 			fmt.Println("Ошибка сериализации:", err)
-			continue // Не закрываем соединение, продолжаем слушать
+			continue
 		}
 
-		// Отправка сообщения обратно через WebSocket
-		if err := conn.WriteMessage(messageType, jsonMessage); err != nil {
-			fmt.Println("Ошибка отправки сообщения:", err)
-			return // Закрываем соединение, если отправка не удалась
+		// Отправляем сообщение всем пользователям чата
+		clientsMutex.Lock()
+		for _, clientConn := range clients[chatID] {
+			if err := clientConn.WriteMessage(messageType, jsonMessage); err != nil {
+				fmt.Println("Ошибка отправки сообщения:", err)
+			}
 		}
+		clientsMutex.Unlock()
 	}
 }

@@ -2,13 +2,13 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Конфигурация API
-const API_URL = 'http://192.168.152.216:8080/api/v1';
+const API_URL = 'http://192.168.1.37:8080/api/v1';
 
 const api = axios.create({
   baseURL: API_URL,
 });
 
-// JWT токен
+// Интерцептор для добавления JWT токена в заголовки запросов
 api.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('token');
@@ -20,7 +20,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Авторизация / регистрация
+// Авторизация пользователя
 export const login = async (email, password) => {
   const response = await api.post('/login', { email, password });
   if (response.data.token) {
@@ -30,17 +30,20 @@ export const login = async (email, password) => {
   return response.data;
 };
 
+// Регистрация пользователя
 export const register = async (email, password) => {
-  const response = await api.post('/regin', { email, password }); // Исправлено 'regin' на 'register'
-  console.log('Register response:', response.data); // Логирование ответа
+  const response = await api.post('/regin', { email, password });
+  console.log('Register response:', response.data);
   return response.data;
 };
 
+// Выход из системы
 export const logout = async () => {
   await AsyncStorage.removeItem('token');
+  await AsyncStorage.removeItem('user_id');
 };
 
-// Чаты
+// Получение списка чатов пользователя
 export const getChats = async (userId) => {
   try {
     const response = await api.get(`/chats?user_id=${userId}`);
@@ -51,18 +54,24 @@ export const getChats = async (userId) => {
   }
 };
 
-// Получение сообщений чата
+// Получение сообщений по чату
 export const getMessages = async (chatId) => {
   try {
-    const response = await axios.get(`${API_URL}/chats/${chatId}/messages`);
-    return response.data; // Ensure this structure matches your API response
+    const response = await api.get(`/chats/${chatId}/messages`);
+    return response.data; // Убедитесь, что эта структура соответствует вашему API
   } catch (error) {
     console.error('Ошибка получения сообщений:', error);
-    throw error; // Rethrow to handle in ChatScreen
+    throw error;
   }
 };
 
+// Получение информации о пользователе по ID
 export const getUserById = async (userId) => {
-  const response = await axios.get(`${API_URL}/users/${userId}`);
-  return response.data; // Assuming response.data contains the user object
+  try {
+    const response = await api.get(`/users/${userId}`);
+    return response.data; // Предполагается, что в response.data содержится объект пользователя
+  } catch (error) {
+    console.error('Ошибка получения информации о пользователе:', error);
+    throw error;
+  }
 };
