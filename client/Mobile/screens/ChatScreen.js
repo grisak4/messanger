@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { View, FlatList, Text, TextInput, Button, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, FlatList, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMessages, getUserById } from '../utils/api';
 import moment from 'moment';
+import { Ionicons } from '@expo/vector-icons';
 
-const ChatScreen = ({ route }) => {
-  const { chatId, chatName } = route.params;
+const ChatScreen = ({ route, navigation }) => {
+  const { chatId, chatName, avatarUrl } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [userSenderId, setUserSenderId] = useState(null);
@@ -13,7 +14,7 @@ const ChatScreen = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef(null);
   const ws = useRef(null);
-  const reconnectAttempts = useRef(0); // Счётчик попыток переподключения
+  const reconnectAttempts = useRef(0);
 
   const fetchUserName = async (userId) => {
     if (userCache[userId]) {
@@ -33,8 +34,11 @@ const ChatScreen = ({ route }) => {
   };
 
   const scrollToBottom = () => {
-    flatListRef.current?.scrollToEnd({ animated: true });
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100); // Отложенный скролл
   };
+  
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -45,7 +49,7 @@ const ChatScreen = ({ route }) => {
       } catch (error) {
         Alert.alert('Ошибка', 'Не удалось загрузить сообщения');
       } finally {
-        setLoading(false); // Отключаем индикатор загрузки
+        setLoading(false);
       }
     };
 
@@ -62,11 +66,11 @@ const ChatScreen = ({ route }) => {
     const setupWebSocket = async () => {
       const userId = await fetchUserId();
       if (userId) {
-        ws.current = new WebSocket(`ws://192.168.1.37:8080/api/v1/ws/chats/${chatId}/users/${userId}`);
+        ws.current = new WebSocket(`ws://192.168.1.38:8080/api/v1/ws/chats/${chatId}/users/${userId}`);
 
         ws.current.onopen = () => {
           console.log('WebSocket соединение открыто');
-          reconnectAttempts.current = 0; // Сброс счётчика при успешном подключении
+          reconnectAttempts.current = 0;
         };
 
         ws.current.onmessage = async (event) => {
@@ -87,7 +91,7 @@ const ChatScreen = ({ route }) => {
 
         ws.current.onclose = () => {
           console.log('WebSocket соединение закрыто');
-          attemptReconnect(); // Попытка переподключения
+          attemptReconnect();
         };
 
         ws.current.onerror = (error) => {
@@ -97,12 +101,12 @@ const ChatScreen = ({ route }) => {
     };
 
     const attemptReconnect = () => {
-      if (reconnectAttempts.current < 5) { // Ограничение на количество попыток
+      if (reconnectAttempts.current < 5) {
         reconnectAttempts.current += 1;
         setTimeout(() => {
           console.log(`Попытка переподключения ${reconnectAttempts.current}`);
           setupWebSocket();
-        }, 2000 * reconnectAttempts.current); // Увеличиваем интервал между попытками переподключения
+        }, 2000 * reconnectAttempts.current);
       } else {
         Alert.alert('Ошибка', 'Не удалось подключиться к WebSocket после нескольких попыток. Пожалуйста, перезагрузите чат.');
       }
@@ -123,34 +127,52 @@ const ChatScreen = ({ route }) => {
 
     const message = {
       chatId,
-      MessageContent: newMessage, // Отправляем только текст сообщения
+      MessageContent: newMessage,
       UserID: userSenderId,
     };
 
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(message));
-      setNewMessage(''); // Очищаем поле ввода
+      setNewMessage('');
     } else {
       console.error('WebSocket не открыт. Текущее состояние:', ws.current.readyState);
     }
   };
 
-  const MessageItem = memo(({ item, userSenderId }) => (
-    <View style={[styles.messageItem, userSenderId == item.UserID ? styles.ownMessage : styles.otherMessage]}>
-      <Text style={styles.sender}>{item.UserName || 'Загрузка...'}</Text>
-      <Text style={styles.message}>{item.MessageContent || 'Нет содержимого сообщения'}</Text>
-      <Text style={styles.time}>{moment(item.TimeSent).format('HH:mm DD/MM/YYYY') || 'Без времени'}</Text>
-    </View>
-  ));
+  const MessageItem = memo(({ item, userSenderId }) => {
+    const messageContent = item.MessageContent || 'Нет содержимого сообщения';
+    const senderName = item.UserName || 'Неизвестный пользователь';
+  
+    return (
+      <View style={[styles.messageItem, userSenderId == item.UserID ? styles.ownMessage : styles.otherMessage]}>
+        <Text style={styles.sender}>{senderName}</Text>
+        <Text style={styles.message}>{messageContent}</Text>
+        <Text style={styles.time}>{moment(item.TimeSent).format('HH:mm DD/MM/YYYY')}</Text>
+      </View>
+    );
+  });
+  
+  const getItemLayout = (data, index) => ({
+    length: 80, // Предположим, что каждое сообщение занимает 80px по высоте
+    offset: 80 * index,
+    index,
+  });
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Text style={styles.chatTitle}>{chatName}</Text>
+      <View style={styles.chatHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#1e90ff" />
+        </TouchableOpacity>
+        <Image source={{ uri: avatarUrl || 'https://placehold.co/40' }} style={styles.avatar} />
+        <Text style={styles.chatTitle}>{chatName}</Text>
+      </View>
+
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#1e90ff" />
       ) : (
         <FlatList
           ref={flatListRef}
@@ -161,9 +183,10 @@ const ChatScreen = ({ route }) => {
           onLayout={scrollToBottom}
           initialNumToRender={10}
           maxToRenderPerBatch={5}
-          windowSize={5}
+          windowSize={5} // Изменяем windowSize для уменьшения перерисовок
         />
       )}
+
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
@@ -171,7 +194,12 @@ const ChatScreen = ({ route }) => {
           onChangeText={setNewMessage}
           placeholder="Введите сообщение"
         />
-        <Button title="Отправить" onPress={handleSendMessage} />
+        <TouchableOpacity style={styles.voiceButton}>
+          <Ionicons name="mic-outline" size={24} color="#1e90ff" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+          <Ionicons name="send-outline" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -180,14 +208,27 @@ const ChatScreen = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#f9f9f9',
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
     backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: 10,
   },
   chatTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 12,
-    textAlign: 'center',
+    marginLeft: 10,
+    color: '#333',
   },
   messageItem: {
     padding: 10,
@@ -219,17 +260,28 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
+    padding: 10,
     borderTopWidth: 1,
-    borderTopColor: '#ccc',
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
   },
   input: {
     flex: 1,
     height: 40,
     borderColor: 'gray',
     borderWidth: 1,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    marginRight: 10,
+  },
+  sendButton: {
+    backgroundColor: '#1e90ff',
+    borderRadius: 20,
+    padding: 10,
+  },
+  voiceButton: {
+    padding: 10,
+    marginRight: 5,
   },
 });
 
